@@ -1,6 +1,7 @@
 // draw_util.h: vectors, colours and the few shapes the star map is built from.
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
@@ -81,13 +82,13 @@ inline Rgb starHalo(State s) {
 inline Rgb nebulaColour(float seed) {
     static const Rgb hues[6] = {{0.55f, 0.3f, 0.85f}, {0.2f, 0.55f, 0.8f}, {0.85f, 0.3f, 0.5f},
                                 {0.25f, 0.7f, 0.6f},  {0.8f, 0.5f, 0.25f}, {0.45f, 0.4f, 0.95f}};
-    return hues[static_cast<int>(seed * 6.0f) % 6];
+    return hues[static_cast<int>(std::clamp(seed, 0.0f, 0.999f) * 6.0f) % 6];
 }
 
 inline Rgb planetColour(float seed) {
     static const Rgb hues[7] = {{0.75f, 0.55f, 0.4f}, {0.4f, 0.6f, 0.85f}, {0.6f, 0.75f, 0.5f}, {0.85f, 0.75f, 0.55f},
                                 {0.7f, 0.45f, 0.6f},  {0.5f, 0.8f, 0.8f},  {0.8f, 0.6f, 0.35f}};
-    return hues[static_cast<int>(seed * 7.0f) % 7];
+    return hues[static_cast<int>(std::clamp(seed, 0.0f, 0.999f) * 7.0f) % 7];
 }
 
 // A failing bulb: 1 most of the time, dipping at random a few times a second.
