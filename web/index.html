@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agent constellation</title>
+<style>
+  :root { color-scheme: dark; --bg: #020309; --fg: #e6e9f2; --muted: #9aa3b8;
+    --panel: rgba(10, 13, 26, 0.86); --line: rgba(160, 175, 220, 0.18); --wait: #59f2ff; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .label { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; font-size: 12px;
+    padding: 1px 7px; border-radius: 999px; color: #f3f1e8; text-shadow: 0 1px 2px #000; }
+  .label.place { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(200, 190, 255, 0.55);
+    text-shadow: 0 0 8px rgba(120, 90, 255, 0.6); }
+  .label.star { background: rgba(8, 10, 22, 0.55); }
+  .label.star.idle { color: #ffc28a; }
+  .label.star.offline, .label.star.dim { color: #9a8c8a; background: none; }
+  .label.star.waiting { color: #021015; background: var(--wait); font-weight: 600; box-shadow: 0 0 14px var(--wait); }
+  .label.star.stalled::after { content: " \26A0"; color: #ffb3a0; }
+  .label.planet { font-size: 11px; color: #c8d2ee; background: rgba(8, 10, 22, 0.5); }
+
+  .hud { position: fixed; display: flex; gap: 8px; align-items: center; }
+  #hud { top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
+  .hc { display: inline-flex; align-items: center; gap: 5px; }
+  .hc.demo { color: #c9b8ff; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+  #tools { top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); }
+  .round { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel);
+    color: var(--fg); font-size: 18px; cursor: pointer; }
+  #beacons { position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 46px); left: 50%; transform: translateX(-50%);
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 94vw; }
+  #beacons:empty { display: none; }
+  .beacon { display: inline-flex; align-items: center; gap: 8px; background: rgba(4, 30, 38, 0.92); color: var(--wait);
+    border: 1px solid var(--wait); border-radius: 999px; padding: 6px 14px; font: 600 14px system-ui, sans-serif;
+    cursor: pointer; box-shadow: 0 0 18px rgba(89, 242, 255, 0.45); }
+  .ping { width: 10px; height: 10px; border-radius: 50%; background: var(--wait); position: relative; }
+  .ping::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--wait);
+    animation: ping 1.4s ease-out infinite; }
+  @keyframes ping { from { transform: scale(0.4); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .ping::after { animation: none; } }
+
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); display: inline-block; flex: none; }
+  .pdot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); display: inline-block; flex: none; opacity: 0.45; }
+  .pdot.active { opacity: 1; box-shadow: 0 0 6px var(--c); }
+  .act { width: 18px; height: 18px; border-radius: 50%; flex: none;
+    background: radial-gradient(circle, #fff 0 18%, var(--c) 30%, transparent 72%); }
+  .chip { font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--c); color: var(--c); white-space: nowrap; }
+  .muted { color: var(--muted); }
+
+  #panel { position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom));
+    width: 320px; max-height: 60vh; overflow: auto; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 12px 14px; backdrop-filter: blur(6px); }
+  #panel .head { display: flex; align-items: center; gap: 8px; padding-right: 30px; }
+  #panel h2 { font-size: 17px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #panel .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; min-width: 0; }
+  #panel .row .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #panel .meta { gap: 14px; color: var(--muted); font-size: 13px; }
+  #panel .planets { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .planet-row { display: flex; width: 100%; align-items: center; gap: 8px; background: none; border: 0; color: var(--fg);
+    padding: 7px 2px; font: inherit; cursor: pointer; text-align: left; border-radius: 8px; }
+  .planet-row:hover { background: rgba(255, 255, 255, 0.05); }
+  .planet-row .pl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .link { background: none; border: 0; color: #ffe9a8; font: inherit; cursor: pointer; padding: 0; }
+  #close { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; font-size: 16px; }
+  .grab { display: none; }
+  @media (max-width: 640px) {
+    #panel { left: 0; right: 0; bottom: 0; width: auto; border-radius: 16px 16px 0 0; max-height: 52vh;
+      padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); border-bottom: 0; }
+    .grab { display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 8px; }
+    .planet-row { padding: 10px 2px; }
+    /* With the sheet up, the map shrinks to the space above it, so the
+       selected star stays in view instead of under the sheet. */
+    body.sheet #view { height: 50%; }
+    body.sheet #panel { max-height: 50%; box-sizing: border-box; }
+  }
+</style>
+</head>
+<body>
+<canvas id="view" tabindex="0" role="img" aria-label="A star map of Claude Code sessions: stars are sessions, planets are their subagents"></canvas>
+<div id="labels" aria-hidden="true"></div>
+<div id="hud" class="hud" aria-label="Counts"></div>
+<div id="tools" class="hud"><button id="home" class="round" title="Show the whole map" aria-label="Show the whole map">&#x2316;</button></div>
+<div id="beacons" aria-live="assertive"></div>
+<section id="panel" hidden aria-live="polite">
+  <div class="grab"></div>
+  <button id="close" class="round" aria-label="Close">&#x2715;</button>
+  <div class="body"></div>
+</section>
+<script src="strata-loader.js"></script>
+<script src="strata-kit.js"></script>
+<script src="constellation.js"></script>
+</body>
+</html>
