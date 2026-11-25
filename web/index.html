@@ -3,94 +3,92 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Agent constellation</title>
+<title>Agent Constellation</title>
+<link rel="stylesheet" href="agentviz-hud.css">
 <style>
-  :root { color-scheme: dark; --bg: #020309; --fg: #e6e9f2; --muted: #9aa3b8;
-    --panel: rgba(10, 13, 26, 0.86); --line: rgba(160, 175, 220, 0.18); --wait: #59f2ff; }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg);
-    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  /* The constellation's theme for the kit's HUD (agentviz-hud.css): deep space,
+     and cyan, not orange, for "needs you", to match the beacon rings. */
+  :root { color-scheme: dark; --bg: #020309;
+    --av-fg: #e6e9f2; --av-muted: #9aa3b8; --av-panel: rgba(10, 13, 26, 0.86); --av-line: rgba(160, 175, 220, 0.18);
+    --av-wait: #59f2ff; --av-wait-fg: #021015; --av-note: #b8fbff; --av-busy: #fff3c4; --av-idle: #ff9e47;
+    --av-off: #8a3a2c; --av-stall: #ff6b55;
+    --av-a-edit: #ff7326; --av-a-run: #73ff80; --av-a-read: #80b8ff; --av-a-web: #c780ff; --av-a-delegate: #ffd966;
+    --av-a-think: #dbd1ff; --av-a-other: #ff99d1; --av-a-none: #8a8f99; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--av-fg); font: var(--av-font); }
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
   #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
-  .label { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; font-size: 12px;
-    padding: 1px 7px; border-radius: 999px; color: #f3f1e8; text-shadow: 0 1px 2px #000; }
-  .label.place { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(200, 190, 255, 0.55);
-    text-shadow: 0 0 8px rgba(120, 90, 255, 0.6); }
-  .label.star { background: rgba(8, 10, 22, 0.55); }
-  .label.star.idle { color: #ffc28a; }
-  .label.star.offline, .label.star.dim { color: #9a8c8a; background: none; }
-  .label.star.waiting { color: #021015; background: var(--wait); font-weight: 600; box-shadow: 0 0 14px var(--wait); }
-  .label.star.stalled::after { content: " \26A0"; color: #ffb3a0; }
-  .label.planet { font-size: 11px; color: #c8d2ee; background: rgba(8, 10, 22, 0.5); }
 
-  .hud { position: fixed; display: flex; gap: 8px; align-items: center; }
-  #hud { top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left));
-    background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
-  .hc { display: inline-flex; align-items: center; gap: 5px; }
-  .hc.demo { color: #c9b8ff; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
-  #tools { top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); }
-  .round { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel);
-    color: var(--fg); font-size: 18px; cursor: pointer; }
-  #beacons { position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 46px); left: 50%; transform: translateX(-50%);
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 94vw; }
-  #beacons:empty { display: none; }
-  .beacon { display: inline-flex; align-items: center; gap: 8px; background: rgba(4, 30, 38, 0.92); color: var(--wait);
-    border: 1px solid var(--wait); border-radius: 999px; padding: 6px 14px; font: 600 14px system-ui, sans-serif;
-    cursor: pointer; box-shadow: 0 0 18px rgba(89, 242, 255, 0.45); }
-  .ping { width: 10px; height: 10px; border-radius: 50%; background: var(--wait); position: relative; }
-  .ping::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--wait);
-    animation: ping 1.4s ease-out infinite; }
-  @keyframes ping { from { transform: scale(0.4); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .ping::after { animation: none; } }
+  /* The kit's chip pulse is orange; ours is the beacon's cyan. The waiting dot
+     stays cyan too, while the demo badge keeps the kit's pale note colour. */
+  .av-wait { animation-name: cv-throb; }
+  @keyframes cv-throb { 0%, 100% { box-shadow: 0 0 0 0 rgba(89, 242, 255, 0.7); } 50% { box-shadow: 0 0 0 7px rgba(89, 242, 255, 0); } }
+  .av-s-waiting { background: var(--av-wait); box-shadow: 0 0 6px var(--av-wait); }
+  .av-wait .av-s-waiting, .av-needs .av-s-waiting { background: var(--av-wait-fg); box-shadow: none; }
+  .av-badge { letter-spacing: 0.1em; text-transform: uppercase; font-size: 11px; }
 
-  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); display: inline-block; flex: none; }
-  .pdot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); display: inline-block; flex: none; opacity: 0.45; }
-  .pdot.active { opacity: 1; box-shadow: 0 0 6px var(--c); }
-  .act { width: 18px; height: 18px; border-radius: 50%; flex: none;
-    background: radial-gradient(circle, #fff 0 18%, var(--c) 30%, transparent 72%); }
-  .chip { font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--c); color: var(--c); white-space: nowrap; }
-  .muted { color: var(--muted); }
+  /* World labels: names float on the sky, without the kit's pill unless they need it. */
+  .av-label { text-shadow: 0 1px 2px #000; }
+  .av-label.place { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(200, 190, 255, 0.6);
+    background: none; border-color: transparent; text-shadow: 0 0 8px rgba(120, 90, 255, 0.6); }
+  .av-label.star { background: rgba(8, 10, 22, 0.55); border-color: transparent; }
+  .av-label.star.idle { color: #ffc28a; }
+  .av-label.star.offline, .av-label.star.dim { color: #9a8c8a; background: none; }
+  .av-label.star.waiting { color: var(--av-wait-fg); background: var(--av-wait); font-weight: 700; box-shadow: 0 0 14px var(--av-wait);
+    text-shadow: none; }
+  .av-label.stalled::after { content: "\26A0"; color: #ffb3a0; }
+  .av-label.planet { font-size: 11px; color: #c8d2ee; background: rgba(8, 10, 22, 0.5); border-color: transparent; }
 
-  #panel { position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom));
-    width: 320px; max-height: 60vh; overflow: auto; background: var(--panel); border: 1px solid var(--line);
-    border-radius: 14px; padding: 12px 14px; backdrop-filter: blur(6px); }
-  #panel .head { display: flex; align-items: center; gap: 8px; padding-right: 30px; }
-  #panel h2 { font-size: 17px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #panel .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; min-width: 0; }
-  #panel .row .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #panel .meta { gap: 14px; color: var(--muted); font-size: 13px; }
-  #panel .planets { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
-  .planet-row { display: flex; width: 100%; align-items: center; gap: 8px; background: none; border: 0; color: var(--fg);
-    padding: 7px 2px; font: inherit; cursor: pointer; text-align: left; border-radius: 8px; }
-  .planet-row:hover { background: rgba(255, 255, 255, 0.05); }
-  .planet-row .pl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .link { background: none; border: 0; color: #ffe9a8; font: inherit; cursor: pointer; padding: 0; }
-  #close { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; font-size: 16px; }
-  .grab { display: none; }
+  .av-legend h3 { margin: 10px 0 6px; font-size: 12px; color: var(--av-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .av-legend h3:first-child { margin-top: 0; }
+  .av-legend ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+  .av-legend li { display: flex; gap: 8px; align-items: center; }
+  .sw { width: 14px; height: 14px; border-radius: 50%; flex: none; box-shadow: 0 0 6px currentColor; }
+
   @media (max-width: 640px) {
-    #panel { left: 0; right: 0; bottom: 0; width: auto; border-radius: 16px 16px 0 0; max-height: 52vh;
-      padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); border-bottom: 0; }
-    .grab { display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 8px; }
-    .planet-row { padding: 10px 2px; }
     /* With the sheet up, the map shrinks to the space above it, so the
        selected star stays in view instead of under the sheet. */
     body.sheet #view { height: 50%; }
-    body.sheet #panel { max-height: 50%; box-sizing: border-box; }
   }
 </style>
 </head>
 <body>
 <canvas id="view" tabindex="0" role="img" aria-label="A star map of Claude Code sessions: stars are sessions, planets are their subagents"></canvas>
 <div id="labels" aria-hidden="true"></div>
-<div id="hud" class="hud" aria-label="Counts"></div>
-<div id="tools" class="hud"><button id="home" class="round" title="Show the whole map" aria-label="Show the whole map">&#x2316;</button></div>
-<div id="beacons" aria-live="assertive"></div>
-<section id="panel" hidden aria-live="polite">
-  <div class="grab"></div>
-  <button id="close" class="round" aria-label="Close">&#x2715;</button>
-  <div class="body"></div>
-</section>
+<aside id="legend" hidden aria-label="What you are looking at">
+  <h3>The map</h3>
+  <ul>
+    <li><span class="sw" style="background:#6a4fb0;color:#6a4fb0"></span>Nebula: a place (the repo); thicker with more tool calls there</li>
+    <li><span class="sw" style="background:#fff3c4;color:#fff3c4"></span>Star: a session, coloured by its state</li>
+    <li><span class="sw" style="background:#8fa8d8;color:#8fa8d8"></span>Planet on a ring: a subagent; fast when active, slow and dark when resting, bigger with more tool calls, a ring when finished</li>
+  </ul>
+  <h3>Stars (state)</h3>
+  <ul>
+    <li><span class="sw" style="background:#fff3c4;color:#fff3c4"></span>busy: bright yellow-white</li>
+    <li><span class="sw" style="background:#ff9e47;color:#ff9e47"></span>idle: dim orange</li>
+    <li><span class="sw" style="background:#59f2ff;color:#59f2ff"></span>needs you: pulses cyan with beacon rings; a "?" above it for a question, a padlock for a permission prompt</li>
+    <li><span class="sw" style="background:#8a3a2c;color:#8a3a2c"></span>offline: a faded ember</li>
+    <li><span class="sw" style="background:#ff6b55;color:#ff6b55"></span>stalled: flickers, label warning sign (subagent planets too, with a red haze)</li>
+    <li><span class="sw" style="background:#ffffff;color:#ffffff"></span>a ring bursting off a star or a planet flashing: a new tool call</li>
+  </ul>
+  <h3>Actions (on the star, in miniature on planets)</h3>
+  <ul>
+    <li><span class="sw" style="background:var(--av-a-edit);color:var(--av-a-edit)"></span>edit: flares leap off the surface</li>
+    <li><span class="sw" style="background:var(--av-a-run);color:var(--av-a-run)"></span>run: a pulsing corona</li>
+    <li><span class="sw" style="background:var(--av-a-read);color:var(--av-a-read)"></span>read: a sweeping beam</li>
+    <li><span class="sw" style="background:var(--av-a-web);color:var(--av-a-web)"></span>web: jets from both poles</li>
+    <li><span class="sw" style="background:var(--av-a-delegate);color:var(--av-a-delegate)"></span>delegate: its orbits glow gold</li>
+    <li><span class="sw" style="background:var(--av-a-think);color:var(--av-a-think)"></span>think: a steady breathing glow</li>
+    <li><span class="sw" style="background:var(--av-a-other);color:var(--av-a-other)"></span>other: a shimmer of sparkles</li>
+  </ul>
+</aside>
 <script src="strata-loader.js"></script>
 <script src="strata-kit.js"></script>
-<script src="constellation.js"></script>
+<script src="agentviz-feed.js"></script>
+<script src="agentviz-screen.js"></script>
+<script src="agentviz-hud.js"></script>
+<script src="agentviz-wire.js"></script>
+<script src="constellation-model.js"></script>
+<script src="constellation-frame.js"></script>
+<script src="page.js"></script>
 </body>
 </html>
