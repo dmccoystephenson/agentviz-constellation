@@ -4,6 +4,10 @@
 (function () {
   "use strict";
   const DEFAULT_YAW = 0.6, DEFAULT_PITCH = 0.62;
+  // On a portrait screen the map is framed from higher up, so its depth
+  // spreads over the tall screen instead of a thin band across the middle.
+  const PORTRAIT_PITCH = 1.05;
+  const PHONE = window.matchMedia("(max-width: 640px)");
   const REASON = {question: "has a question", permission: "needs permission"};
   const canvas = document.getElementById("view");
   const map = new window.Constellation();
@@ -17,20 +21,24 @@
   function fitView() {
     const e = map.extent();
     const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
-    return {yaw: DEFAULT_YAW, pitch: DEFAULT_PITCH, dist: e.r * 2.5 / Math.min(aspect, 1.78),
+    const pitch = aspect < 1 ? PORTRAIT_PITCH : DEFAULT_PITCH;
+    return {yaw: DEFAULT_YAW, pitch, dist: e.r * 2.5 / Math.min(aspect, 1.78),
       tx: e.c[0], ty: 0, tz: e.c[2]};
   }
   function fit(instant) {
     if (!map.places.size) return;
     const view = fitView();
     if (instant || kit.driven) { flight = null; Object.assign(kit.cam, view); return; }
-    flight = {target: () => [view.tx, view.ty, view.tz], dist: view.dist};
+    flight = {target: () => [view.tx, view.ty, view.tz], dist: view.dist, pitch: view.pitch};
   }
-  // Fly to a star or planet and keep easing after it until it is reached.
+  // Fly to a star or planet and keep easing after it until it is reached. A
+  // waiting star is framed a little above its centre and from further out, so
+  // its beacon rings and the "?" or padlock over it stay in view.
   function focusOn(thing) {
-    const isStar = !thing.star;
-    flight = {target: () => [thing.x, thing.y, thing.z],
-      dist: isStar ? Math.max(14, thing.systemR * 3.2) : 9};
+    const isStar = !thing.star, waiting = isStar && thing.session.state === "waiting";
+    const lift = waiting ? thing.r * 1.3 + 1.2 : 0;
+    flight = {target: () => [thing.x, thing.y + lift, thing.z],
+      dist: isStar ? Math.max(waiting ? 20 : 14, thing.systemR * 3.2) : 9};
   }
   function stepCamera(dt) {
     if (!flight) return;
@@ -39,7 +47,9 @@
     cam.ty = AgentvizFeed.ease(cam.ty, to[1], dt, rate);
     cam.tz = AgentvizFeed.ease(cam.tz, to[2], dt, rate);
     cam.dist = AgentvizFeed.ease(cam.dist, flight.dist, dt, rate);
-    const near = Math.hypot(cam.tx - to[0], cam.ty - to[1], cam.tz - to[2]) < 0.05 && Math.abs(cam.dist - flight.dist) < 0.1;
+    if (flight.pitch != null) cam.pitch = AgentvizFeed.ease(cam.pitch, flight.pitch, dt, rate);
+    const near = Math.hypot(cam.tx - to[0], cam.ty - to[1], cam.tz - to[2]) < 0.05 && Math.abs(cam.dist - flight.dist) < 0.1 &&
+      (flight.pitch == null || Math.abs(cam.pitch - flight.pitch) < 0.01);
     if (near) flight = null;
   }
 
@@ -51,17 +61,24 @@
     const el = labels.set("s:" + star.id, {cls, action: s.state === "busy" ? s.action : null,
       text: waiting ? name + " " + (REASON[s.waitingReason] || "needs you") : name});
     el.style.opacity = String(star.appear);
-    const rank = star.id === selectedId ? 0 : waiting ? 1 : s.state === "offline" ? 4 : 2;
-    return {el, q: kit.project(star.x, star.y + star.r * 2.2 + 0.4, star.z), rank};
+    // Who needs you, then who is stuck, then everyone else: a stalled star's
+    // warning sign wins over a busy neighbour's name.
+    const rank = star.id === selectedId ? 0 : waiting || s.stalled ? 1 : s.state === "offline" ? 4 : 2;
+    // A waiting star's label sits over its "?" or padlock (scene/star.h draws
+    // it at r * 2.6 + 2.4 above the centre, 2.2 tall), not across it.
+    const lift = waiting ? star.r * 2.6 + 4.8 : star.r * 2.2 + 0.4;
+    // A stalled star may stack its label over a waiting neighbour's instead of hiding.
+    return {el, q: kit.project(star.x, star.y + lift, star.z), rank, tries: s.stalled && rank > 0 ? 4 : undefined};
   }
-  // Planet labels show round the selected system, and always for a stalled subagent.
+  // Planet labels show round the selected system, and always for a stalled
+  // subagent. They sit over the selection ring (planet.h: size * 2.2 + 0.2).
   function planetLabel(planet) {
     const f = planet.follower, selected = map.find(selectedId);
     const near = selected && (selected === planet || selected === planet.star || selected.star === planet.star);
     if (!near && !f.stalled) return null;
     const el = labels.set("f:" + planet.id, {cls: "planet" + (f.stalled ? " stalled" : ""),
       action: f.state === "active" ? f.action : "none", text: f.label || f.id});
-    return {el, q: kit.project(planet.x, planet.y + planet.size + 0.3, planet.z), rank: planet.id === selectedId ? 0 : 3};
+    return {el, q: kit.project(planet.x, planet.y + planet.size * 2.2 + 0.4, planet.z), rank: planet.id === selectedId ? 0 : 3};
   }
   function placeLabels() {
     const items = [];
@@ -104,6 +121,7 @@
     if (kit) kit.selected = thing || null;
     // On a phone the map shrinks to the space above the bottom sheet.
     document.body.classList.toggle("sheet", !!thing);
+    fitClearBand();
     if (thing && how !== "api") focusOn(thing);
   }
 
@@ -114,6 +132,19 @@
     onSelect,
     rows: ({session, follower}) => (follower ? [] : [["tool calls", session.toolCount != null ? session.toolCount : "—"]]),
   });
+
+  // The bottom sheet's height follows its content, so the map's clear band
+  // (CSS --cv-clear, the canvas height while the sheet is up) follows the
+  // sheet's top. offsetTop ignores the slide-in transform: it is where the
+  // sheet will rest.
+  let clearBand = null;
+  function fitClearBand() {
+    const band = PHONE.matches && hud.selected ? Math.max(120, hud.panel.offsetTop) + "px" : null;
+    if (band === clearBand) return;
+    clearBand = band;
+    if (band) document.body.style.setProperty("--cv-clear", band);
+    else document.body.style.removeProperty("--cv-clear");
+  }
 
   function accept(doc) {
     map.update(doc);
@@ -150,7 +181,7 @@
       camera: {yaw: DEFAULT_YAW, pitch: DEFAULT_PITCH, dist: 80, tx: 0, ty: 0, tz: 0},
       limits: {minDist: 3, maxDist: 400, minPitch: -1.3, maxPitch: 1.5},
       frame,
-      after: () => { if (feed && feed.doc) placeLabels(); },
+      after: () => { fitClearBand(); if (feed && feed.doc) placeLabels(); },
       pick,
       idOf: (thing) => thing.id,
       onTap: (thing) => hud.select(targetOf(thing), "tap"),

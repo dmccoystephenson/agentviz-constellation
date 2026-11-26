@@ -104,6 +104,7 @@ inline void drawBeacon(Host& h, const Star& s, float t, float beat) {
         const float u = i / 8.0f;
         glow(h, s.c + V3{0, r + u * 7.0f, 0}, 0.6f * (1.0f - u * 0.5f), kWaitColour, (1.0f - u) * 0.5f * a, 2.0f);
     }
+    // page.js lifts a waiting star's label above this glyph (r * 2.6 + 4.8): keep in step.
     const V3 above = s.c + V3{0, r * 2.6f + 2.4f, 0};
     const float size = 2.2f, alpha = (0.75f + 0.25f * beat) * a;
     if (s.a->waitingReason == agentviz::WaitingReason::Question) drawQuestion(h, above, f, size, alpha);
