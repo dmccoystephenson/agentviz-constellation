@@ -130,16 +130,17 @@
     legend: document.getElementById("legend"),
     buttons: [{icon: "home", label: "Show the whole map", onClick: () => { hud.select(null); fit(false); }}],
     onSelect,
+    oneRow: true,
     rows: ({session, follower}) => (follower ? [] : [["tool calls", session.toolCount != null ? session.toolCount : "—"]]),
   });
 
   // The bottom sheet's height follows its content, so the map's clear band
   // (CSS --cv-clear, the canvas height while the sheet is up) follows the
-  // sheet's top. offsetTop ignores the slide-in transform: it is where the
-  // sheet will rest.
+  // sheet's top where it will rest (hud.panelRect ignores the slide-in).
   let clearBand = null;
   function fitClearBand() {
-    const band = PHONE.matches && hud.selected ? Math.max(120, hud.panel.offsetTop) + "px" : null;
+    const sheet = PHONE.matches && hud.selected ? hud.panelRect() : null;
+    const band = sheet ? Math.max(120, sheet.y0) + "px" : null;
     if (band === clearBand) return;
     clearBand = band;
     if (band) document.body.style.setProperty("--cv-clear", band);
