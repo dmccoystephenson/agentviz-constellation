@@ -18,10 +18,12 @@
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
   #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 
-  /* The kit's chip pulse is orange; ours is the beacon's cyan. The waiting dot
-     stays cyan too, while the demo badge keeps the kit's pale note colour. */
+  /* The kit's chip pulse is orange; ours follows the --av-wait token (the
+     beacon's cyan). The waiting dot stays cyan too, while the demo badge keeps
+     the kit's pale note colour. */
   .av-wait { animation-name: cv-throb; }
-  @keyframes cv-throb { 0%, 100% { box-shadow: 0 0 0 0 rgba(89, 242, 255, 0.7); } 50% { box-shadow: 0 0 0 7px rgba(89, 242, 255, 0); } }
+  @keyframes cv-throb { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--av-wait) 70%, transparent); }
+    50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--av-wait) 0%, transparent); } }
   .av-s-waiting { background: var(--av-wait); box-shadow: 0 0 6px var(--av-wait); }
   .av-wait .av-s-waiting, .av-needs .av-s-waiting { background: var(--av-wait-fg); box-shadow: none; }
   .av-badge { letter-spacing: 0.1em; text-transform: uppercase; font-size: 11px; }
@@ -45,10 +47,19 @@
   .sw { width: 14px; height: 14px; border-radius: 50%; flex: none; box-shadow: 0 0 6px currentColor; }
 
   @media (max-width: 640px) {
-    /* With the sheet up, the map shrinks to the space above it, so the
-       selected star stays in view instead of under the sheet. */
-    body.sheet #view { height: 50%; }
+    /* One row of chips on a phone: the title and the idle / away counts give
+       way, so "need you", busy and subagents stay with the buttons. */
+    .av-bar .av-title, .av-bar .av-chip[title="idle"], .av-bar .av-chip[title="away"] { display: none; }
+    .av-bar { gap: 4px; }
+    .av-bar .av-chip { padding-left: 7px; padding-right: 7px; }
+    .av-bar .av-badge { padding: 4px 5px; letter-spacing: 0; font-size: 9px; }
+    /* With the sheet up, the map shrinks to the space above it (page.js sets
+       --cv-clear to the sheet's top), so the selected star sits in the clear
+       band instead of under the sheet. */
+    body.sheet #view { height: var(--cv-clear, 50%); }
   }
+  /* The smallest phones (320 px) drop the demo-feed badge to stay on one row. */
+  @media (max-width: 359px) { .av-bar .av-badge { display: none; } }
 </style>
 </head>
 <body>

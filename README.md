@@ -16,8 +16,9 @@ ten views of the same feed.
 *The whole map (demo feed). Otto (right) is a lead with seven subagent
 planets; Wren, the other lead, shares `site-one` with Juniper (top, its label
 gives way to Juniper's). Juniper and Thistle need the owner: cyan labels that
-say why, and the top chip, which names the next one and cycles through them.
-Marisol and Otter read and surf in `docs`; Anvil, Scout and Pebble share
+say why, over the "?" or padlock, and the top chip, which names the next one
+and cycles through them. Patch, beside Thistle in `game`, is stalled: its
+warning sign stacks above Thistle's label rather than hiding. Marisol and Otter read and surf in `docs`; Anvil, Scout and Pebble share
 `engine`; Lantern and Sparky sit in the home nebula; Fern, alone in
 `old-site`, is an offline ember.*
 
@@ -43,8 +44,11 @@ stats), `?quality=0|1|2`.
 
 Drag to orbit, right-drag or two fingers to pan, wheel or pinch to zoom. Tap
 a star or a planet: the camera flies to it and its card opens (a bottom sheet
-on a phone, with the map shrunk to the space above it; swipe it down or tap
-the cross to close). The cyan **need you** chip names who is waiting and why,
+on a phone, with the map shrunk to the clear space between the top bar and the
+sheet's top; swipe it down or tap the cross to close). A waiting star is framed
+from a little further out, so its beacon rings and its "?" or padlock stay in
+view. On a phone the top bar keeps to one row: the title and the idle and away
+counts give way. The cyan **need you** chip names who is waiting and why,
 flies to them and cycles through them; the house button frames the whole map;
 **?** opens the legend. If the feed stops answering, a banner says so and the
 last snapshot stays; with no sessions at all, a hint says how to start.
@@ -149,8 +153,9 @@ says so, with its tool, tool calls and a chip back to Otto.*
 <img src="docs/media/phone-map.png" width="260" alt="Phone portrait: the whole map, small">
 </p>
 
-*On a phone (390 x 844, DPR 3): the bottom sheet for Otto, with the map shrunk
-to the space above it; and the whole map, which is wider than it is deep.*
+*On a phone (390 x 844, DPR 3): the top bar on one row, and the bottom sheet
+for Otto with the map shrunk to the space above it; and the whole map, framed
+from higher up on a portrait screen so it spreads down the screen.*
 
 ![The whole map from straight above](docs/media/angle-top.png)
 *From above: the places on a golden-angle spiral, each session's system inside
@@ -203,8 +208,8 @@ lights (`sky.h`, `star.h`, `planet.h`, `actions.h`).
 
 - Places get a slot the first time they appear and keep it for the page's
   life; a long-lived page with many places that come and go leaves holes.
-- On a phone the whole map is small: it is wider than it is deep. Tap a star
-  to fly in.
+- On a phone the whole map is still small, since its width sets the zoom.
+  Tap a star to fly in.
 - Ideas: a time-lapse of the last hour, comet trails for subagents that just
   finished, constellation lines between sessions on the same branch.
 
