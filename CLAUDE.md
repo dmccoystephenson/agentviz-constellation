@@ -21,5 +21,3 @@ agentviz family: https://github.com/dmccoystephenson/agentviz
   `npm run screenshots` (Pillow from requirements-dev.txt for the GIF), port 9120
   (`CONSTELLATION_TEST_PORT`).
 - Screenshots come from the FIXTURE feed only, never live sessions.
-- While the repo is private, hosted Actions are billing-blocked: run localci on PRs
-  (drop this line once it is public).
